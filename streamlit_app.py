@@ -133,23 +133,51 @@ def download_file(url, filename):
         return filename
     return None
 
+def get_ffmpeg_path():
+    # Check if ffmpeg is in PATH
+    try:
+        subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        return "ffmpeg"
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    
+    # Check for local ffmpeg-static (common in local dev)
+    local_ffmpeg = os.path.join(os.getcwd(), "server", "node_modules", "ffmpeg-static", "ffmpeg.exe")
+    if os.path.exists(local_ffmpeg):
+        return local_ffmpeg
+        
+    return None
+
 def generate_images_from_prompt(prompt):
     image_prompt = prompt.replace('"', '').replace('saying', '').replace('says', '').strip()
     base_seed = random.randint(0, 1000000)
+    # Extended scenes for a longer, more comprehensive video
     scenes = [
-        "wide angle establishing shot, cinematic composition",
-        "medium shot, dynamic action pose",
-        "close up, detailed expression, dramatic lighting",
-        "dynamic angle, intense atmosphere, movie still"
+        "wide angle establishing shot, cinematic composition, highly detailed environment",
+        "medium shot, dynamic action pose, intense gaze, detailed character design",
+        "close up, detailed expression, dramatic lighting, anime masterpiece",
+        "low angle shot, looking up at character, heroic stance, epic atmosphere",
+        "side profile, emotional expression, wind blowing hair, cinematic lighting",
+        "wide shot, battle ready pose, dynamic background, movie still quality"
     ]
     
     image_urls = []
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
     for index, scene_desc in enumerate(scenes):
+        status_text.text(f"Generating Scene {index + 1}/{len(scenes)}...")
+        # Add character consistency tags
         full_prompt = f"anime style, masterpiece, best quality, 8k, cinematic lighting, detailed character design, {image_prompt}, {scene_desc}"
         encoded_prompt = requests.utils.quote(full_prompt)
-        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=576&seed={base_seed + index}&nologo=true"
+        # Add negative prompt to avoid bad anatomy
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=576&seed={base_seed + index}&nologo=true&negative=bad%20anatomy,blurred,watermark,text,error,missing%20limbs"
         image_urls.append(url)
+        progress_bar.progress((index + 1) / len(scenes))
+        time.sleep(0.5) # Slight delay to be nice to the API
     
+    status_text.empty()
+    progress_bar.empty()
     return image_urls
 
 def create_video_from_images(image_paths, audio_path, output_filename):
@@ -157,10 +185,8 @@ def create_video_from_images(image_paths, audio_path, output_filename):
     fps = 30
     total_frames = duration_per_image * fps
     
-    # Check if ffmpeg is installed
-    try:
-        subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    ffmpeg_cmd = get_ffmpeg_path()
+    if not ffmpeg_cmd:
         st.error("FFmpeg is not installed or not in PATH. Please install FFmpeg.")
         return None
 
@@ -169,7 +195,7 @@ def create_video_from_images(image_paths, audio_path, output_filename):
     inputs = []
     
     # Add image inputs
-    cmd = ["ffmpeg", "-y"]
+    cmd = [ffmpeg_cmd, "-y"]
     
     for i, img_path in enumerate(image_paths):
         cmd.extend(["-loop", "1", "-framerate", str(fps), "-t", str(duration_per_image), "-i", img_path])
