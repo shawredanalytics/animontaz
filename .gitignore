@@ -4,3 +4,6 @@ dist/
 .DS_Store
 server/uploads/
 *.log
+temp_process/
+*.mp4
+__pycache__/
