@@ -18,39 +18,110 @@ st.set_page_config(
 # Custom CSS for Anime Cyberpunk look
 st.markdown("""
 <style>
+    /* Main Background */
     .stApp {
-        background-color: #000000;
+        background-color: #050505;
+        background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000000 100%);
         color: #ffffff;
     }
+
+    /* Buttons */
     .stButton>button {
-        background: linear-gradient(45deg, #ff0055, #00ffff);
+        background: linear-gradient(90deg, #ff0055, #ff00aa);
         border: none;
+        border-radius: 4px;
         color: white;
-        font-weight: bold;
-        letter-spacing: 2px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
         text-transform: uppercase;
         width: 100%;
-        padding: 0.5rem;
-        transition: all 0.3s ease;
+        padding: 0.75rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(255, 0, 85, 0.4);
     }
     .stButton>button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 15px rgba(255, 0, 85, 0.5);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 0, 85, 0.6);
+        background: linear-gradient(90deg, #ff00aa, #ff0055);
     }
+
+    /* Titles */
     h1 {
         font-family: 'Arial Black', sans-serif;
-        background: linear-gradient(to right, #fff, #888);
+        background: linear-gradient(to right, #ffffff, #a0a0a0);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-transform: uppercase;
+        font-size: 3.5rem !important;
         letter-spacing: -2px;
+        margin-bottom: 0.5rem !important;
+        text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
     }
-    .css-1d391kg {
-        background-color: rgba(20, 20, 20, 0.8);
-        backdrop-filter: blur(10px);
+    h3 {
+        color: #ff0055 !important;
+        font-weight: 300 !important;
+        letter-spacing: 2px !important;
+        text-transform: uppercase;
+        font-size: 1.2rem !important;
+        margin-top: 0 !important;
+        opacity: 0.9;
+    }
+
+    /* Text Input Area */
+    .stTextArea textarea {
+        background-color: rgba(30, 30, 30, 0.6) !important;
+        color: #fff !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 8px !important;
+        font-size: 1.1rem;
+        transition: border-color 0.3s ease;
+    }
+    .stTextArea textarea:focus {
+        border-color: #00ffff !important;
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.2) !important;
+    }
+    .stTextArea label {
+        color: #aaaaaa !important;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+
+    /* File Uploader Customization */
+    [data-testid="stFileUploader"] {
+        padding: 1.5rem;
+        border-radius: 12px;
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+    }
+    [data-testid="stFileUploader"]:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-color: #00ffff;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+    }
+    [data-testid="stFileUploader"] section {
+        background-color: transparent !important;
+    }
+    /* Force text color in uploader to be visible */
+    [data-testid="stFileUploader"] small {
+        color: #888888 !important;
+    }
+    [data-testid="stFileUploader"] button {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+        border: none !important;
+    }
+
+    /* Spinner */
+    .stSpinner > div {
+        border-color: #ff0055 transparent #00ffff transparent !important;
+    }
+
+    /* Success/Error messages */
+    .stAlert {
+        background-color: rgba(20, 20, 20, 0.9);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 20px;
+        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
