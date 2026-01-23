@@ -6,7 +6,10 @@ import subprocess
 import random
 import math
 from datetime import datetime
-import openai
+try:
+    import openai
+except ImportError:
+    openai = None
 
 # Set page config
 st.set_page_config(
@@ -150,6 +153,10 @@ def get_ffmpeg_path():
     return None
 
 def generate_storyboard(prompt, api_key):
+    if not openai:
+        st.warning("OpenAI library is not installed. Using basic template mode.")
+        return None
+        
     if not api_key:
         return None
         
