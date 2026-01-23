@@ -20,9 +20,8 @@ st.markdown("""
 <style>
     /* Main Background */
     .stApp {
-        background-color: #050505;
-        background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000000 100%);
-        color: #ffffff;
+        background-color: #ffffff;
+        color: #000000;
     }
 
     /* Buttons */
@@ -37,25 +36,24 @@ st.markdown("""
         width: 100%;
         padding: 0.75rem;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 15px rgba(255, 0, 85, 0.4);
+        box-shadow: 0 4px 15px rgba(255, 0, 85, 0.2);
     }
     .stButton>button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 0, 85, 0.6);
+        box-shadow: 0 6px 20px rgba(255, 0, 85, 0.4);
         background: linear-gradient(90deg, #ff00aa, #ff0055);
     }
 
     /* Titles */
     h1 {
         font-family: 'Arial Black', sans-serif;
-        background: linear-gradient(to right, #ffffff, #a0a0a0);
+        background: linear-gradient(to right, #000000, #333333);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-transform: uppercase;
         font-size: 3.5rem !important;
         letter-spacing: -2px;
         margin-bottom: 0.5rem !important;
-        text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
     }
     h3 {
         color: #ff0055 !important;
@@ -69,19 +67,19 @@ st.markdown("""
 
     /* Text Input Area */
     .stTextArea textarea {
-        background-color: rgba(30, 30, 30, 0.6) !important;
-        color: #fff !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background-color: #f5f5f5 !important;
+        color: #000000 !important;
+        border: 1px solid #e0e0e0 !important;
         border-radius: 8px !important;
         font-size: 1.1rem;
         transition: border-color 0.3s ease;
     }
     .stTextArea textarea:focus {
-        border-color: #00ffff !important;
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.2) !important;
+        border-color: #ff0055 !important;
+        box-shadow: 0 0 10px rgba(255, 0, 85, 0.1) !important;
     }
     .stTextArea label {
-        color: #aaaaaa !important;
+        color: #333333 !important;
         font-weight: bold;
         letter-spacing: 1px;
     }
@@ -90,38 +88,37 @@ st.markdown("""
     [data-testid="stFileUploader"] {
         padding: 1.5rem;
         border-radius: 12px;
-        background-color: rgba(255, 255, 255, 0.03);
-        border: 1px dashed rgba(255, 255, 255, 0.2);
+        background-color: #f8f9fa;
+        border: 1px dashed #cccccc;
         transition: all 0.3s ease;
     }
     [data-testid="stFileUploader"]:hover {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-color: #00ffff;
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+        background-color: #f0f0f0;
+        border-color: #ff0055;
     }
     [data-testid="stFileUploader"] section {
         background-color: transparent !important;
     }
     /* Force text color in uploader to be visible */
     [data-testid="stFileUploader"] small {
-        color: #888888 !important;
+        color: #666666 !important;
     }
     [data-testid="stFileUploader"] button {
-        background-color: rgba(255, 255, 255, 0.1) !important;
-        color: white !important;
+        background-color: #e0e0e0 !important;
+        color: #000000 !important;
         border: none !important;
     }
 
     /* Spinner */
     .stSpinner > div {
-        border-color: #ff0055 transparent #00ffff transparent !important;
+        border-color: #ff0055 transparent #ff00aa transparent !important;
     }
 
     /* Success/Error messages */
     .stAlert {
-        background-color: rgba(20, 20, 20, 0.9);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: white;
+        background-color: #fff0f5;
+        border: 1px solid #ff0055;
+        color: #000000;
     }
 </style>
 """, unsafe_allow_html=True)
