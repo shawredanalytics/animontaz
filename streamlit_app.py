@@ -6,6 +6,7 @@ import subprocess
 import random
 import math
 from datetime import datetime
+import openai
 
 # Set page config
 st.set_page_config(
@@ -148,18 +149,46 @@ def get_ffmpeg_path():
         
     return None
 
-def generate_images_from_prompt(prompt):
-    image_prompt = prompt.replace('"', '').replace('saying', '').replace('says', '').strip()
+def generate_storyboard(prompt, api_key):
+    if not api_key:
+        return None
+        
+    client = openai.OpenAI(api_key=api_key)
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an expert anime director. Create a sequence of 6 detailed visual scene descriptions for a short anime video based on the user's prompt. The scenes should flow logically to tell a mini-story. Output ONLY the 6 descriptions, one per line, without numbers or prefixes."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        content = response.choices[0].message.content.strip()
+        scenes = [line.strip() for line in content.split('\n') if line.strip()]
+        return scenes[:6]
+    except Exception as e:
+        st.error(f"ChatGPT Error: {str(e)}")
+        return None
+
+def generate_images_from_prompt(prompt, api_key=None):
     base_seed = random.randint(0, 1000000)
-    # Extended scenes for a longer, more comprehensive video
-    scenes = [
-        "wide angle establishing shot, cinematic composition, highly detailed environment",
-        "medium shot, dynamic action pose, intense gaze, detailed character design",
-        "close up, detailed expression, dramatic lighting, anime masterpiece",
-        "low angle shot, looking up at character, heroic stance, epic atmosphere",
-        "side profile, emotional expression, wind blowing hair, cinematic lighting",
-        "wide shot, battle ready pose, dynamic background, movie still quality"
-    ]
+    
+    scenes = []
+    if api_key:
+        with st.spinner("Consulting with AI Director (ChatGPT)..."):
+            scenes = generate_storyboard(prompt, api_key)
+            
+    if not scenes:
+        image_prompt = prompt.replace('"', '').replace('saying', '').replace('says', '').strip()
+        # Fallback scenes
+        suffixes = [
+            "wide angle establishing shot, cinematic composition, highly detailed environment",
+            "medium shot, dynamic action pose, intense gaze, detailed character design",
+            "close up, detailed expression, dramatic lighting, anime masterpiece",
+            "low angle shot, looking up at character, heroic stance, epic atmosphere",
+            "side profile, emotional expression, wind blowing hair, cinematic lighting",
+            "wide shot, battle ready pose, dynamic background, movie still quality"
+        ]
+        scenes = [f"{image_prompt}, {s}" for s in suffixes]
     
     image_urls = []
     progress_bar = st.progress(0)
@@ -168,7 +197,7 @@ def generate_images_from_prompt(prompt):
     for index, scene_desc in enumerate(scenes):
         status_text.text(f"Generating Scene {index + 1}/{len(scenes)}...")
         # Add character consistency tags
-        full_prompt = f"anime style, masterpiece, best quality, 8k, cinematic lighting, detailed character design, {image_prompt}, {scene_desc}"
+        full_prompt = f"anime style, masterpiece, best quality, 8k, cinematic lighting, detailed character design, {scene_desc}"
         encoded_prompt = requests.utils.quote(full_prompt)
         # Add negative prompt to avoid bad anatomy
         url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=576&seed={base_seed + index}&nologo=true&negative=bad%20anatomy,blurred,watermark,text,error,missing%20limbs"
@@ -252,6 +281,11 @@ def create_video_from_images(image_paths, audio_path, output_filename):
 st.title("ANIMONTAZ")
 st.markdown("### Create Your Own Anime Saga")
 
+# Sidebar for API Key
+with st.sidebar:
+    st.markdown("### ⚙️ Settings")
+    api_key = st.text_input("OpenAI API Key (Optional)", type="password", help="Enter your OpenAI API Key to enable ChatGPT-powered storyboarding.")
+
 col1, col2 = st.columns([1, 1])
 
 with col1:
@@ -281,7 +315,7 @@ with col2:
                             f.write(img_file.getbuffer())
                         image_paths.append(file_path)
                 elif prompt:
-                    image_urls = generate_images_from_prompt(prompt)
+                    image_urls = generate_images_from_prompt(prompt, api_key)
                     for i, url in enumerate(image_urls):
                         file_path = os.path.join("temp_process", f"gen_{i}.jpg")
                         if download_file(url, file_path):
