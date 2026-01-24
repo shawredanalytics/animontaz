@@ -126,31 +126,48 @@ st.markdown("""
 
 # Helper functions
 def generate_storyboard(prompt, api_key, style_name="Anime"):
-    if not api_key:
-        return None
-        
-    try:
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": "gpt-3.5-turbo",
-            "messages": [
-                {"role": "system", "content": f"You are an expert {style_name} illustrator. Create a detailed visual description for a high-quality illustration based on the user's prompt. Output ONLY the description, without any prefixes."},
-                {"role": "user", "content": prompt}
-            ]
-        }
-        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
-        if response.status_code == 200:
-            content = response.json()['choices'][0]['message']['content'].strip()
-            return [content]
-        else:
-            st.warning(f"ChatGPT API Error: {response.status_code}")
+    system_instruction = f"You are an expert {style_name} illustrator. Create a detailed visual description for a high-quality illustration based on the user's prompt. Output ONLY the description, without any prefixes."
+    
+    if api_key:
+        try:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": "gpt-3.5-turbo",
+                "messages": [
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt}
+                ]
+            }
+            response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+            if response.status_code == 200:
+                content = response.json()['choices'][0]['message']['content'].strip()
+                return [content]
+            else:
+                st.warning(f"ChatGPT API Error: {response.status_code}")
+                return None
+        except Exception as e:
+            st.error(f"ChatGPT Error: {str(e)}")
             return None
-    except Exception as e:
-        st.error(f"ChatGPT Error: {str(e)}")
-        return None
+    else:
+        # Use Pollinations.ai Text API if no OpenAI key is provided
+        try:
+            full_prompt = f"{system_instruction}\n\nUser Prompt: {prompt}"
+            encoded_prompt = requests.utils.quote(full_prompt)
+            # Use 'openai' model via Pollinations (free tier)
+            url = f"https://text.pollinations.ai/{encoded_prompt}?model=openai"
+            
+            response = requests.get(url)
+            if response.status_code == 200:
+                content = response.text.strip()
+                return [content]
+            else:
+                # Silent failure to fallback to raw prompt
+                return None
+        except Exception:
+            return None
 
 def generate_images_from_prompt(prompt, width, height, num_images, style_name, style_prompt, negative_prompt, seed, enhance_prompt, api_key=None):
     if seed == -1:
@@ -159,10 +176,10 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
         base_seed = seed
     
     scenes = []
-    if api_key and enhance_prompt: # Only use ChatGPT if enhancement is enabled
+    if enhance_prompt: # Use AI Illustrator (OpenAI or Pollinations)
         with st.spinner(f"Consulting with AI Illustrator ({style_name} Expert)..."):
             scenes = generate_storyboard(prompt, api_key, style_name)
-            # Ensure we generate the requested number of images even if OpenAI gives one description
+            # Ensure we generate the requested number of images even if AI gives one description
             if scenes and len(scenes) == 1 and num_images > 1:
                 scenes = scenes * num_images
             
@@ -208,7 +225,7 @@ st.markdown("### AI Anime Image Generator")
 # Sidebar for API Key
 with st.sidebar:
     st.markdown("### ⚙️ Settings")
-    api_key = st.text_input("OpenAI API Key (Optional)", type="password", help="Enter your OpenAI API Key to enable ChatGPT-powered scene generation.")
+    api_key = st.text_input("OpenAI API Key (Optional)", type="password", help="Enter your OpenAI API Key to enable ChatGPT-powered scene generation. If left blank, Pollinations AI (Free) will be used for both text and images.")
     
     st.markdown("### 🎨 Customization")
     
