@@ -137,15 +137,14 @@ def generate_storyboard(prompt, api_key):
         data = {
             "model": "gpt-3.5-turbo",
             "messages": [
-                {"role": "system", "content": "You are an expert anime illustrator. Create a sequence of 6 detailed visual scene descriptions for a series of anime illustrations based on the user's prompt. The scenes should flow logically to tell a visual story. Output ONLY the 6 descriptions, one per line, without numbers or prefixes."},
+                {"role": "system", "content": "You are an expert anime illustrator. Create a detailed visual description for a high-quality anime illustration based on the user's prompt. Output ONLY the description, without any prefixes."},
                 {"role": "user", "content": prompt}
             ]
         }
         response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
         if response.status_code == 200:
             content = response.json()['choices'][0]['message']['content'].strip()
-            scenes = [line.strip() for line in content.split('\n') if line.strip()]
-            return scenes[:6]
+            return [content]
         else:
             st.warning(f"ChatGPT API Error: {response.status_code}")
             return None
@@ -163,30 +162,22 @@ def generate_images_from_prompt(prompt, api_key=None):
             
     if not scenes:
         image_prompt = prompt.replace('"', '').replace('saying', '').replace('says', '').strip()
-        # Fallback scenes
-        suffixes = [
-            "wide angle establishing shot, cinematic composition, highly detailed environment",
-            "medium shot, dynamic action pose, intense gaze, detailed character design",
-            "close up, detailed expression, dramatic lighting, anime masterpiece",
-            "low angle shot, looking up at character, heroic stance, epic atmosphere",
-            "side profile, emotional expression, wind blowing hair, cinematic lighting",
-            "wide shot, battle ready pose, dynamic background, movie still quality"
-        ]
-        scenes = [f"{image_prompt}, {s}" for s in suffixes]
+        # Fallback single scene with high quality tags
+        scenes = [f"{image_prompt}, cinematic composition, highly detailed environment, anime masterpiece, 8k, best quality"]
     
     image_urls = []
     progress_bar = st.progress(0)
     status_text = st.empty()
     
     for index, scene_desc in enumerate(scenes):
-        status_text.text(f"Generating Scene {index + 1}/{len(scenes)}...")
+        status_text.text(f"Generating Anime Image...")
         # Add character consistency tags
         full_prompt = f"anime style, masterpiece, best quality, 8k, cinematic lighting, detailed character design, {scene_desc}"
         encoded_prompt = requests.utils.quote(full_prompt)
         # Add negative prompt to avoid bad anatomy
-        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=576&seed={base_seed + index}&nologo=true&negative=bad%20anatomy,blurred,watermark,text,error,missing%20limbs"
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&seed={base_seed}&nologo=true&negative=bad%20anatomy,blurred,watermark,text,error,missing%20limbs"
         image_urls.append(url)
-        progress_bar.progress((index + 1) / len(scenes))
+        progress_bar.progress(100)
         time.sleep(0.5) # Slight delay to be nice to the API
     
     status_text.empty()
@@ -217,24 +208,24 @@ with col2:
                 image_urls = generate_images_from_prompt(prompt, api_key)
                 
                 if image_urls:
-                    st.success(f"Generated {len(image_urls)} Anime Photos!")
+                    st.success(f"Anime Photo Generated!")
                     
-                    # Display images in a grid
-                    for i, url in enumerate(image_urls):
-                        st.image(url, caption=f"Scene {i+1}", use_container_width=True)
-                        
-                        # Add download button for each image
-                        try:
-                            response = requests.get(url)
-                            if response.status_code == 200:
-                                st.download_button(
-                                    label=f"Download Image {i+1}",
-                                    data=response.content,
-                                    file_name=f"animontaz_scene_{i+1}.jpg",
-                                    mime="image/jpeg"
-                                )
-                        except Exception as e:
-                            st.error(f"Could not load download button for image {i+1}")
+                    # Display single image
+                    url = image_urls[0]
+                    st.image(url, caption="Generated Anime Art", use_container_width=True)
+                    
+                    # Add download button
+                    try:
+                        response = requests.get(url)
+                        if response.status_code == 200:
+                            st.download_button(
+                                label="Download Image",
+                                data=response.content,
+                                file_name=f"animontaz_art.jpg",
+                                mime="image/jpeg"
+                            )
+                    except Exception as e:
+                        st.error("Could not load download button")
 
 st.markdown("---")
 st.markdown("Powered by Pollinations.ai")
