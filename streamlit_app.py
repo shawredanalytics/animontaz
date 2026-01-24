@@ -169,7 +169,84 @@ def generate_storyboard(prompt, api_key, style_name="Anime"):
         except Exception:
             return None
 
-def generate_images_from_prompt(prompt, width, height, num_images, style_name, style_prompt, negative_prompt, seed, enhance_prompt, api_key=None):
+def generate_with_stable_horde(prompt, width, height, model_name, negative_prompt, api_key="0000000000"):
+    """
+    Generates an image using the Stable Horde API (Async/Polling).
+    """
+    url_generate = "https://stablehorde.net/api/v2/generate/async"
+    headers = {
+        "apikey": api_key,
+        "Client-Agent": "Animontaz:1.0:user",
+        "Content-Type": "application/json"
+    }
+    
+    # Stable Horde uses '###' to separate positive and negative prompts
+    final_prompt = f"{prompt} ### {negative_prompt}"
+    
+    payload = {
+        "prompt": final_prompt,
+        "params": {
+            "sampler_name": "k_euler_a",
+            "cfg_scale": 7,
+            "height": height,
+            "width": width,
+            "steps": 30,
+            "n": 1
+        },
+        "nsfw": True, # Allow artistic freedom (needed for many anime models)
+        "censor_nsfw": False,
+        "models": [model_name]
+    }
+    
+    try:
+        # 1. Submit Request
+        response = requests.post(url_generate, headers=headers, json=payload)
+        if response.status_code != 202:
+            st.error(f"Stable Horde Error: {response.text}")
+            return None
+            
+        request_id = response.json()['id']
+        
+        # 2. Poll for Status
+        status_url = f"https://stablehorde.net/api/v2/generate/status/{request_id}"
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        while True:
+            stat_res = requests.get(status_url)
+            if stat_res.status_code != 200:
+                time.sleep(1)
+                continue
+                
+            stat_data = stat_res.json()
+            
+            if stat_data['done']:
+                progress_bar.progress(1.0)
+                status_text.text("Generation Complete!")
+                break
+                
+            if stat_data['faulted']:
+                st.error("Generation failed on Stable Horde.")
+                return None
+            
+            # Update progress
+            wait_time = stat_data.get('wait_time', 0)
+            queue_pos = stat_data.get('queue_position', 0)
+            status_text.text(f"Queue Position: {queue_pos} | Est. Wait: {wait_time}s")
+            
+            time.sleep(2) # Poll every 2 seconds
+            
+        # 3. Get Image URL
+        if stat_data['generations']:
+            img_url = stat_data['generations'][0]['img']
+            return img_url
+        return None
+        
+    except Exception as e:
+        st.error(f"Stable Horde Exception: {str(e)}")
+        return None
+
+def generate_images_from_prompt(prompt, width, height, num_images, style_name, style_prompt, negative_prompt, seed, enhance_prompt, api_key=None, generation_source="Pollinations AI (Fast)", horde_api_key="0000000000", horde_model="Anything Diffusion"):
     if seed == -1:
         base_seed = random.randint(0, 1000000)
     else:
@@ -205,14 +282,25 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
             style_part = f"{style_prompt}, " if style_prompt else ""
             full_prompt = f"{style_part}{scene_desc}"
         
-        encoded_prompt = requests.utils.quote(full_prompt)
-        encoded_negative = requests.utils.quote(negative_prompt)
+        if generation_source == "Pollinations AI (Fast)":
+            encoded_prompt = requests.utils.quote(full_prompt)
+            encoded_negative = requests.utils.quote(negative_prompt)
+            
+            # Add negative prompt to avoid bad anatomy
+            url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={base_seed + index}&nologo=true&negative={encoded_negative}"
+            image_urls.append(url)
+            time.sleep(0.5) # Slight delay to be nice to the API
+            
+        elif generation_source == "Stable Horde (Specific Models)":
+            # Call Stable Horde
+            status_text.text(f"Queueing Image {index + 1}/{len(scenes)} on Stable Horde ({horde_model})...")
+            img_url = generate_with_stable_horde(full_prompt, width, height, horde_model, negative_prompt, horde_api_key)
+            if img_url:
+                image_urls.append(img_url)
+            else:
+                st.warning(f"Failed to generate image {index+1} via Stable Horde.")
         
-        # Add negative prompt to avoid bad anatomy
-        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={base_seed + index}&nologo=true&negative={encoded_negative}"
-        image_urls.append(url)
         progress_bar.progress((index + 1) / len(scenes))
-        time.sleep(0.5) # Slight delay to be nice to the API
     
     status_text.empty()
     progress_bar.empty()
@@ -226,6 +314,23 @@ st.markdown("### AI Anime Image Generator")
 with st.sidebar:
     st.markdown("### ⚙️ Settings")
     api_key = st.text_input("OpenAI API Key (Optional)", type="password", help="Enter your OpenAI API Key to enable ChatGPT-powered scene generation. If left blank, Pollinations AI (Free) will be used for both text and images.")
+    
+    generation_source = st.selectbox(
+        "Image Generation Source",
+        ["Pollinations AI (Fast)", "Stable Horde (Specific Models)"],
+        help="Choose 'Pollinations AI' for speed, or 'Stable Horde' to use specific anime models (slower, but more control)."
+    )
+    
+    horde_api_key = "0000000000"
+    horde_model = "Anything Diffusion"
+    
+    if generation_source == "Stable Horde (Specific Models)":
+        horde_api_key = st.text_input("Stable Horde API Key (Optional)", value="0000000000", type="password", help="Register at stablehorde.net for a key to get faster generation. '0000000000' is anonymous.")
+        horde_model = st.selectbox(
+            "Anime Model",
+            ["Anything Diffusion", "Counterfeit", "AbyssOrangeMix3", "Waifu Diffusion", "MeinaMix", "Stable Diffusion XL"],
+            index=0
+        )
     
     st.markdown("### 🎨 Customization")
     
@@ -270,7 +375,7 @@ with col2:
             st.warning("Please provide a prompt.")
         else:
             with st.spinner("Summoning your anime photos..."):
-                image_urls = generate_images_from_prompt(prompt, width, height, num_images, style_option, style_prompts[style_option], negative_prompt, seed, enhance_prompt, api_key)
+                image_urls = generate_images_from_prompt(prompt, width, height, num_images, style_option, style_prompts[style_option], negative_prompt, seed, enhance_prompt, api_key, generation_source, horde_api_key, horde_model)
                 
                 if image_urls:
                     st.success(f"Generated {len(image_urls)} Anime Photos!")
@@ -292,4 +397,4 @@ with col2:
                             st.error(f"Could not load download button for image {i+1}")
 
 st.markdown("---")
-st.markdown("Powered by Pollinations.ai")
+st.markdown("Powered by Pollinations.ai & Stable Horde")
