@@ -246,6 +246,29 @@ def generate_with_stable_horde(prompt, width, height, model_name, negative_promp
         st.error(f"Stable Horde Exception: {str(e)}")
         return None
 
+def create_gumroad_product(api_key, name, description, price):
+    try:
+        url = "https://api.gumroad.com/v2/products"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        data = {
+            "name": name,
+            "description": description,
+            "price": int(price * 100), # cents
+            "currency": "usd"
+        }
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 201:
+            return response.json()['product']['short_url']
+        else:
+            st.error(f"Gumroad Error: {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"Connection Error: {str(e)}")
+        return None
+
 def generate_images_from_prompt(prompt, width, height, num_images, style_name, style_prompt, negative_prompt, seed, enhance_prompt, format_option, api_key=None, generation_source="Pollinations AI (Fast)", horde_api_key="0000000000", horde_model="DreamShaper"):
     if seed == -1:
         base_seed = random.randint(0, 1000000)
@@ -368,7 +391,10 @@ with st.sidebar:
             index=0
         )
     
-    st.markdown("### 🎨 Art Direction")
+    st.markdown("### � Store Integration")
+    gumroad_access_token = st.text_input("Gumroad Access Token (Optional)", type="password", help="Enter your Gumroad Access Token to automatically draft products.")
+    
+    st.markdown("### �� Art Direction")
     
     format_option = st.selectbox(
         "Output Format (Commercial Use)",
@@ -466,6 +492,37 @@ with col2:
                                 )
                         except Exception as e:
                             st.error(f"Could not load download button for image {i+1}")
+
+                        # Store Integration
+                        with st.expander(f"💰 Sell Art #{i+1}"):
+                            st.markdown("#### 📝 Product Details")
+                            
+                            default_title = f"{format_option} - {style_option} #{i+1}"
+                            p_title = st.text_input("Title", value=default_title, key=f"title_{i}")
+                            
+                            default_desc = f"**Format:** {format_option}\n**Style:** {style_option}\n**Prompt:** {prompt}\n\nHigh-resolution digital artwork created with Animontaz."
+                            p_desc = st.text_area("Description", value=default_desc, key=f"desc_{i}")
+                            
+                            p_price = st.number_input("Price ($)", value=4.99, step=0.5, key=f"price_{i}")
+                            
+                            if gumroad_access_token:
+                                if st.button(f"🚀 Draft on Gumroad", key=f"gum_btn_{i}"):
+                                    with st.spinner("Creating product on Gumroad..."):
+                                        product_url = create_gumroad_product(gumroad_access_token, p_title, p_desc, p_price)
+                                        if product_url:
+                                            st.success(f"Product Created! [View on Gumroad]({product_url})")
+                                            st.balloons()
+                            else:
+                                st.info("💡 Enter your Gumroad Access Token in the sidebar to automatically create products.")
+                                
+                            st.markdown("#### 🌐 Other Platforms")
+                            c1, c2, c3 = st.columns(3)
+                            with c1:
+                                st.markdown("[Redbubble Upload](https://www.redbubble.com/portfolio/images/new)")
+                            with c2:
+                                st.markdown("[Teespring Launcher](https://teespring.com/dashboard/campaigns)")
+                            with c3:
+                                st.markdown("[Etsy Shop](https://www.etsy.com/your/shops/me/dashboard)")
 
 st.markdown("---")
 st.markdown("Powered by Pollinations.ai & Stable Horde")
