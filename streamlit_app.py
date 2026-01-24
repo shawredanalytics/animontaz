@@ -275,8 +275,20 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
         if enhance_prompt:
             # Construct the final prompt with style and quality boosters
             style_part = f"{style_prompt}, " if style_prompt else ""
-            # Combine everything: Style keywords + Quality tags + Scene Description
-            full_prompt = f"{style_part}masterpiece, best quality, 8k, cinematic lighting, detailed character design, anatomically correct, perfect anatomy, detailed face, detailed hands, {scene_desc}"
+            
+            # Determine quality boosters based on style (Anime vs Cartoon)
+            if "Disney" in style_name or "3D" in style_name:
+                quality_boosters = "masterpiece, best quality, 8k, cinematic lighting, 3d render, unreal engine, detailed character design"
+            elif "Classic" in style_name or "Retro" in style_name:
+                quality_boosters = "high quality, detailed, vibrant colors, clean lines"
+            elif "Manga" in style_name:
+                quality_boosters = "masterpiece, best quality, high contrast, detailed ink work"
+            else:
+                # Default Anime/General
+                quality_boosters = "masterpiece, best quality, 8k, cinematic lighting, detailed character design, anatomically correct, perfect anatomy"
+
+            # Combine everything
+            full_prompt = f"{style_part}{quality_boosters}, {scene_desc}"
         else:
             # Raw prompt mode - just append style if selected, but no quality boosters
             style_part = f"{style_prompt}, " if style_prompt else ""
@@ -308,7 +320,7 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
 
 # Main App UI
 st.title("ANIMONTAZ")
-st.markdown("### AI Anime Image Generator")
+st.markdown("### AI Anime & Cartoon Generator")
 
 # Sidebar for API Key
 with st.sidebar:
@@ -318,7 +330,7 @@ with st.sidebar:
     generation_source = st.selectbox(
         "Image Generation Source",
         ["Pollinations AI (Fast)", "Stable Horde (Specific Models)"],
-        help="Choose 'Pollinations AI' for speed, or 'Stable Horde' to use specific anime models (slower, but more control)."
+        help="Choose 'Pollinations AI' for speed, or 'Stable Horde' to use specific models (slower, but more control)."
     )
     
     horde_api_key = "0000000000"
@@ -327,8 +339,8 @@ with st.sidebar:
     if generation_source == "Stable Horde (Specific Models)":
         horde_api_key = st.text_input("Stable Horde API Key (Optional)", value="0000000000", type="password", help="Register at stablehorde.net for a key to get faster generation. '0000000000' is anonymous.")
         horde_model = st.selectbox(
-            "Anime Model",
-            ["Anything Diffusion", "Counterfeit", "AbyssOrangeMix3", "Waifu Diffusion", "MeinaMix", "Stable Diffusion XL"],
+            "Model Selection",
+            ["Anything Diffusion", "Counterfeit", "AbyssOrangeMix3", "Waifu Diffusion", "MeinaMix", "Stable Diffusion XL", "Deliberate", "DreamShaper"],
             index=0
         )
     
@@ -336,18 +348,36 @@ with st.sidebar:
     
     style_option = st.selectbox(
         "Art Style",
-        ["Default", "Cyberpunk", "Studio Ghibli", "Dark Fantasy", "90s Retro Anime", "Watercolor", "Manga (B&W)"],
+        [
+            "Default Anime", 
+            "Cyberpunk", 
+            "Studio Ghibli", 
+            "Dark Fantasy", 
+            "90s Retro Anime", 
+            "Watercolor", 
+            "Manga (B&W)",
+            "Disney / Pixar 3D",
+            "Classic Cartoon (2D)",
+            "Modern Cartoon",
+            "Comic Book",
+            "Claymation"
+        ],
         index=0
     )
     
     style_prompts = {
-        "Default": "",
+        "Default Anime": "",
         "Cyberpunk": "neon lights, futuristic city, cybernetic enhancements, high tech, sci-fi atmosphere",
         "Studio Ghibli": "lush nature, vibrant colors, hand painted style, peaceful atmosphere, detailed background",
         "Dark Fantasy": "dark atmosphere, gothic architecture, dramatic shadows, mysterious, ethereal",
         "90s Retro Anime": "grainy texture, vintage anime style, cel shaded, 90s aesthetic, vhs glitch",
         "Watercolor": "watercolor painting style, soft edges, artistic, dreamy, pastel colors",
-        "Manga (B&W)": "black and white, manga style, screentones, ink lines, dramatic shading"
+        "Manga (B&W)": "black and white, manga style, screentones, ink lines, dramatic shading",
+        "Disney / Pixar 3D": "3d render, pixar style, disney style, cgsociety, unreal engine 5, cute, expressive, smooth",
+        "Classic Cartoon (2D)": "flat color, thick outlines, 1990s cartoon style, hanna barbera style, vibrant, funny",
+        "Modern Cartoon": "calarts style, adventure time style, vector art, flat design, bright colors, simple",
+        "Comic Book": "comic book style, marvel style, dc style, bold lines, dynamic action, halftone patterns",
+        "Claymation": "claymation style, aardman style, stop motion, plasticine, textured, handmade"
     }
     
     col_w, col_h = st.columns(2)
