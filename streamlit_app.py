@@ -16,7 +16,7 @@ try:
 except ImportError:
     openai = None
 
-# Custom CSS for Anime Cyberpunk look
+# Custom CSS for Cartoon look
 st.markdown("""
 <style>
     /* Main Background */
@@ -276,16 +276,20 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
             # Construct the final prompt with style and quality boosters
             style_part = f"{style_prompt}, " if style_prompt else ""
             
-            # Determine quality boosters based on style (Anime vs Cartoon)
+            # Determine quality boosters based on style
             if "Disney" in style_name or "3D" in style_name:
                 quality_boosters = "masterpiece, best quality, 8k, cinematic lighting, 3d render, unreal engine, detailed character design"
             elif "Classic" in style_name or "Retro" in style_name:
-                quality_boosters = "high quality, detailed, vibrant colors, clean lines"
-            elif "Manga" in style_name:
-                quality_boosters = "masterpiece, best quality, high contrast, detailed ink work"
+                quality_boosters = "high quality, detailed, vibrant colors, clean lines, 2d animation style"
+            elif "Modern" in style_name:
+                quality_boosters = "high quality, sharp vector art, bold colors, modern design"
+            elif "Comic" in style_name:
+                quality_boosters = "detailed ink work, halftone patterns, bold lines, dynamic shading"
+            elif "Claymation" in style_name:
+                quality_boosters = "clay texture, stop motion look, handmade feel, depth of field"
             else:
-                # Default Anime/General
-                quality_boosters = "masterpiece, best quality, 8k, cinematic lighting, detailed character design, anatomically correct, perfect anatomy"
+                # Default Cartoon
+                quality_boosters = "high quality, detailed, vibrant, expressive characters"
 
             # Combine everything
             full_prompt = f"{style_part}{quality_boosters}, {scene_desc}"
@@ -320,7 +324,7 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
 
 # Main App UI
 st.title("ANIMONTAZ")
-st.markdown("### AI Anime & Cartoon Generator")
+st.markdown("### AI Cartoon Generator")
 
 # Sidebar for API Key
 with st.sidebar:
@@ -334,13 +338,13 @@ with st.sidebar:
     )
     
     horde_api_key = "0000000000"
-    horde_model = "Anything Diffusion"
+    horde_model = "DreamShaper"
     
     if generation_source == "Stable Horde (Specific Models)":
         horde_api_key = st.text_input("Stable Horde API Key (Optional)", value="0000000000", type="password", help="Register at stablehorde.net for a key to get faster generation. '0000000000' is anonymous.")
         horde_model = st.selectbox(
             "Model Selection",
-            ["Anything Diffusion", "Counterfeit", "AbyssOrangeMix3", "Waifu Diffusion", "MeinaMix", "Stable Diffusion XL", "Deliberate", "DreamShaper"],
+            ["DreamShaper", "Deliberate", "Stable Diffusion XL", "ToonYou", "Disney Pixar Cartoon Type B", "Anything Diffusion"],
             index=0
         )
     
@@ -349,35 +353,25 @@ with st.sidebar:
     style_option = st.selectbox(
         "Art Style",
         [
-            "Default Anime", 
-            "Cyberpunk", 
-            "Studio Ghibli", 
-            "Dark Fantasy", 
-            "90s Retro Anime", 
-            "Watercolor", 
-            "Manga (B&W)",
             "Disney / Pixar 3D",
             "Classic Cartoon (2D)",
             "Modern Cartoon",
             "Comic Book",
-            "Claymation"
+            "Claymation",
+            "Vector Art",
+            "3D Animation"
         ],
         index=0
     )
     
     style_prompts = {
-        "Default Anime": "",
-        "Cyberpunk": "neon lights, futuristic city, cybernetic enhancements, high tech, sci-fi atmosphere",
-        "Studio Ghibli": "lush nature, vibrant colors, hand painted style, peaceful atmosphere, detailed background",
-        "Dark Fantasy": "dark atmosphere, gothic architecture, dramatic shadows, mysterious, ethereal",
-        "90s Retro Anime": "grainy texture, vintage anime style, cel shaded, 90s aesthetic, vhs glitch",
-        "Watercolor": "watercolor painting style, soft edges, artistic, dreamy, pastel colors",
-        "Manga (B&W)": "black and white, manga style, screentones, ink lines, dramatic shading",
         "Disney / Pixar 3D": "3d render, pixar style, disney style, cgsociety, unreal engine 5, cute, expressive, smooth",
         "Classic Cartoon (2D)": "flat color, thick outlines, 1990s cartoon style, hanna barbera style, vibrant, funny",
         "Modern Cartoon": "calarts style, adventure time style, vector art, flat design, bright colors, simple",
         "Comic Book": "comic book style, marvel style, dc style, bold lines, dynamic action, halftone patterns",
-        "Claymation": "claymation style, aardman style, stop motion, plasticine, textured, handmade"
+        "Claymation": "claymation style, aardman style, stop motion, plasticine, textured, handmade",
+        "Vector Art": "vector art, adobe illustrator, flat design, minimal, clean, sharp",
+        "3D Animation": "3d character, blender render, maya, cute 3d art, stylized 3d"
     }
     
     col_w, col_h = st.columns(2)
@@ -396,22 +390,22 @@ with st.sidebar:
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    prompt = st.text_area("Enter your prompt", placeholder="A cyberpunk samurai walking in the neon rain...", height=100)
-    generate_btn = st.button("GENERATE ANIME PHOTOS")
+    prompt = st.text_area("Enter your prompt", placeholder="A cute robot dog running in the park...", height=100)
+    generate_btn = st.button("GENERATE CARTOONS")
 
 with col2:
     if generate_btn:
         if not prompt:
             st.warning("Please provide a prompt.")
         else:
-            with st.spinner("Summoning your anime photos..."):
+            with st.spinner("Creating your cartoons..."):
                 image_urls = generate_images_from_prompt(prompt, width, height, num_images, style_option, style_prompts[style_option], negative_prompt, seed, enhance_prompt, api_key, generation_source, horde_api_key, horde_model)
                 
                 if image_urls:
-                    st.success(f"Generated {len(image_urls)} Anime Photos!")
+                    st.success(f"Generated {len(image_urls)} Cartoons!")
                     
                     for i, url in enumerate(image_urls):
-                        st.image(url, caption=f"Generated Anime Art #{i+1}", use_container_width=True)
+                        st.image(url, caption=f"Generated Cartoon Art #{i+1}", use_container_width=True)
                         
                         try:
                             response = requests.get(url)
@@ -419,7 +413,7 @@ with col2:
                                 st.download_button(
                                     label=f"Download Image #{i+1}",
                                     data=response.content,
-                                    file_name=f"animontaz_art_{i+1}.jpg",
+                                    file_name=f"animontaz_cartoon_{i+1}.jpg",
                                     mime="image/jpeg",
                                     key=f"dl_{i}"
                                 )
