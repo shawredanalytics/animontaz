@@ -246,20 +246,36 @@ def generate_with_stable_horde(prompt, width, height, model_name, negative_promp
         st.error(f"Stable Horde Exception: {str(e)}")
         return None
 
-def create_gumroad_product(api_key, name, description, price):
+def create_gumroad_product(api_key, name, description, price, tags, image_url=None):
     try:
         url = "https://api.gumroad.com/v2/products"
         headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Authorization": f"Bearer {api_key}"
+            # Content-Type is auto-set by requests when files are present, or we set it for form-data
         }
+        
         data = {
             "name": name,
             "description": description,
             "price": int(price * 100), # cents
-            "currency": "usd"
+            "currency": "usd",
+            "tags": tags
         }
-        response = requests.post(url, headers=headers, data=data)
+        
+        files = {}
+        if image_url:
+            # Download the image to upload as cover/thumbnail
+            img_resp = requests.get(image_url)
+            if img_resp.status_code == 200:
+                # 'thumbnail' or 'cover' might be the field name. Gumroad docs vary, usually 'thumbnail' or 'preview'.
+                # We will try 'thumbnail' which is often the cover image.
+                files['thumbnail'] = ('cover.jpg', img_resp.content, 'image/jpeg')
+        
+        if files:
+            response = requests.post(url, headers=headers, data=data, files=files)
+        else:
+            response = requests.post(url, headers=headers, data=data)
+            
         if response.status_code == 201:
             return response.json()['product']['short_url']
         else:
@@ -507,11 +523,14 @@ with col2:
                             
                             if gumroad_access_token:
                                 if st.button(f"🚀 Draft on Gumroad", key=f"gum_btn_{i}"):
-                                    with st.spinner("Creating product on Gumroad..."):
-                                        product_url = create_gumroad_product(gumroad_access_token, p_title, p_desc, p_price)
+                                    with st.spinner("Creating product on Gumroad (Uploading Cover...)..."):
+                                        # Generate tags based on style and format
+                                        tags = f"{style_option}, {format_option}, Digital Art, AI Art, Animontaz"
+                                        product_url = create_gumroad_product(gumroad_access_token, p_title, p_desc, p_price, tags, url)
                                         if product_url:
                                             st.success(f"Product Created! [View on Gumroad]({product_url})")
                                             st.balloons()
+                                            st.info("Note: The image has been uploaded as the cover. Please log in to Gumroad to attach the high-res file for buyers.")
                             else:
                                 st.info("💡 Enter your Gumroad Access Token in the sidebar to automatically create products.")
                                 
