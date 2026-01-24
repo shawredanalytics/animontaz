@@ -246,7 +246,7 @@ def generate_with_stable_horde(prompt, width, height, model_name, negative_promp
         st.error(f"Stable Horde Exception: {str(e)}")
         return None
 
-def generate_images_from_prompt(prompt, width, height, num_images, style_name, style_prompt, negative_prompt, seed, enhance_prompt, api_key=None, generation_source="Pollinations AI (Fast)", horde_api_key="0000000000", horde_model="Anything Diffusion"):
+def generate_images_from_prompt(prompt, width, height, num_images, style_name, style_prompt, negative_prompt, seed, enhance_prompt, format_option, api_key=None, generation_source="Pollinations AI (Fast)", horde_api_key="0000000000", horde_model="DreamShaper"):
     if seed == -1:
         base_seed = random.randint(0, 1000000)
     else:
@@ -269,6 +269,17 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
     progress_bar = st.progress(0)
     status_text = st.empty()
     
+    # Define Format Keywords
+    format_keywords = ""
+    if "Sticker" in format_option:
+        format_keywords = "die-cut sticker, white background, vector style, cute, simple, distinct outline"
+    elif "T-Shirt" in format_option:
+        format_keywords = "t-shirt design, vector art, isolated on black background, clean lines, high contrast, screen print style"
+    elif "Poster" in format_option:
+        format_keywords = "high detailed poster, wall art, 8k resolution, cinematic composition, highly detailed, sharp focus"
+    elif "Character Design" in format_option:
+        format_keywords = "character design sheet, full body, multiple views, concept art, reference sheet, white background"
+    
     for index, scene_desc in enumerate(scenes):
         status_text.text(f"Generating Image {index + 1}/{len(scenes)}...")
         
@@ -283,20 +294,29 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
                 quality_boosters = "high quality, detailed, vibrant colors, clean lines, 2d animation style"
             elif "Modern" in style_name:
                 quality_boosters = "high quality, sharp vector art, bold colors, modern design"
-            elif "Comic" in style_name:
+            elif "Comic" in style_name or "Pop Art" in style_name:
                 quality_boosters = "detailed ink work, halftone patterns, bold lines, dynamic shading"
             elif "Claymation" in style_name:
                 quality_boosters = "clay texture, stop motion look, handmade feel, depth of field"
+            elif "Oil Painting" in style_name:
+                quality_boosters = "oil painting texture, visible brushstrokes, canvas texture, masterpiece, classic art"
+            elif "Concept Art" in style_name or "Cyberpunk" in style_name:
+                quality_boosters = "digital concept art, trending on artstation, highly detailed, intricate, cinematic"
+            elif "Realistic" in style_name:
+                quality_boosters = "photorealistic, hyperrealistic, 8k, highly detailed, sharp focus, professional photography"
             else:
-                # Default Cartoon
-                quality_boosters = "high quality, detailed, vibrant, expressive characters"
+                # Default
+                quality_boosters = "high quality, detailed, vibrant, expressive, digital art"
 
-            # Combine everything
-            full_prompt = f"{style_part}{quality_boosters}, {scene_desc}"
+            # Combine everything: Style + Quality + Format + Scene
+            full_prompt = f"{style_part}{quality_boosters}, {format_keywords}, {scene_desc}"
         else:
             # Raw prompt mode - just append style if selected, but no quality boosters
             style_part = f"{style_prompt}, " if style_prompt else ""
-            full_prompt = f"{style_part}{scene_desc}"
+            full_prompt = f"{style_part}{format_keywords}, {scene_desc}"
+        
+        # Clean up commas
+        full_prompt = full_prompt.replace(", ,", ",").strip(", ")
         
         if generation_source == "Pollinations AI (Fast)":
             encoded_prompt = requests.utils.quote(full_prompt)
@@ -324,7 +344,7 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
 
 # Main App UI
 st.title("ANIMONTAZ")
-st.markdown("### AI Cartoon Generator")
+st.markdown("### AI Digital Art & Cartoon Studio")
 
 # Sidebar for API Key
 with st.sidebar:
@@ -344,11 +364,24 @@ with st.sidebar:
         horde_api_key = st.text_input("Stable Horde API Key (Optional)", value="0000000000", type="password", help="Register at stablehorde.net for a key to get faster generation. '0000000000' is anonymous.")
         horde_model = st.selectbox(
             "Model Selection",
-            ["DreamShaper", "Deliberate", "Stable Diffusion XL", "ToonYou", "Disney Pixar Cartoon Type B", "Anything Diffusion"],
+            ["DreamShaper", "Deliberate", "Stable Diffusion XL", "ToonYou", "Disney Pixar Cartoon Type B", "Anything Diffusion", "CyberRealistic", "Rev Animated"],
             index=0
         )
     
-    st.markdown("### 🎨 Customization")
+    st.markdown("### 🎨 Art Direction")
+    
+    format_option = st.selectbox(
+        "Output Format (Commercial Use)",
+        [
+            "Standard Digital Art",
+            "Sticker Design (Die-cut, White BG)",
+            "T-Shirt Design (Isolated, Vector)",
+            "Wall Art / Poster (High Detail)",
+            "Character Design (Full Body Sheet)"
+        ],
+        index=0,
+        help="Optimizes the prompt for specific selling formats."
+    )
     
     style_option = st.selectbox(
         "Art Style",
@@ -359,7 +392,14 @@ with st.sidebar:
             "Comic Book",
             "Claymation",
             "Vector Art",
-            "3D Animation"
+            "3D Animation",
+            "Oil Painting",
+            "Watercolor",
+            "Cyberpunk / Synthwave",
+            "Concept Art",
+            "Pop Art",
+            "Realistic Portrait",
+            "Surrealism"
         ],
         index=0
     )
@@ -371,7 +411,14 @@ with st.sidebar:
         "Comic Book": "comic book style, marvel style, dc style, bold lines, dynamic action, halftone patterns",
         "Claymation": "claymation style, aardman style, stop motion, plasticine, textured, handmade",
         "Vector Art": "vector art, adobe illustrator, flat design, minimal, clean, sharp",
-        "3D Animation": "3d character, blender render, maya, cute 3d art, stylized 3d"
+        "3D Animation": "3d character, blender render, maya, cute 3d art, stylized 3d",
+        "Oil Painting": "oil painting, thick impasto, palette knife, classic art style, textured",
+        "Watercolor": "watercolor painting, soft edges, wet on wet, artistic, dreamy, pastel colors",
+        "Cyberpunk / Synthwave": "cyberpunk, synthwave, neon lights, futuristic, retro sci-fi, high tech, glowing",
+        "Concept Art": "digital concept art, highly detailed, atmospheric, epic scale, trending on artstation",
+        "Pop Art": "pop art style, warhol style, bright colors, repetition, bold contrast, retro",
+        "Realistic Portrait": "professional portrait, studio lighting, bokeh, 85mm lens, sharp focus, skin texture",
+        "Surrealism": "surreal art, dreamlike, dali style, impossible geometry, ethereal, mysterious"
     }
     
     col_w, col_h = st.columns(2)
@@ -390,30 +437,30 @@ with st.sidebar:
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    prompt = st.text_area("Enter your prompt", placeholder="A cute robot dog running in the park...", height=100)
-    generate_btn = st.button("GENERATE CARTOONS")
+    prompt = st.text_area("Enter your prompt", placeholder="A majestic lion wearing a crown, galaxy background...", height=100)
+    generate_btn = st.button("GENERATE DIGITAL ART")
 
 with col2:
     if generate_btn:
         if not prompt:
             st.warning("Please provide a prompt.")
         else:
-            with st.spinner("Creating your cartoons..."):
-                image_urls = generate_images_from_prompt(prompt, width, height, num_images, style_option, style_prompts[style_option], negative_prompt, seed, enhance_prompt, api_key, generation_source, horde_api_key, horde_model)
+            with st.spinner("Creating your masterpiece..."):
+                image_urls = generate_images_from_prompt(prompt, width, height, num_images, style_option, style_prompts[style_option], negative_prompt, seed, enhance_prompt, format_option, api_key, generation_source, horde_api_key, horde_model)
                 
                 if image_urls:
-                    st.success(f"Generated {len(image_urls)} Cartoons!")
+                    st.success(f"Generated {len(image_urls)} Artworks!")
                     
                     for i, url in enumerate(image_urls):
-                        st.image(url, caption=f"Generated Cartoon Art #{i+1}", use_container_width=True)
+                        st.image(url, caption=f"Generated Art #{i+1}", use_container_width=True)
                         
                         try:
                             response = requests.get(url)
                             if response.status_code == 200:
                                 st.download_button(
-                                    label=f"Download Image #{i+1}",
+                                    label=f"Download Art #{i+1}",
                                     data=response.content,
-                                    file_name=f"animontaz_cartoon_{i+1}.jpg",
+                                    file_name=f"animontaz_art_{i+1}.jpg",
                                     mime="image/jpeg",
                                     key=f"dl_{i}"
                                 )
