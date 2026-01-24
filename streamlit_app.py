@@ -152,11 +152,14 @@ def generate_storyboard(prompt, api_key, style_name="Anime"):
         st.error(f"ChatGPT Error: {str(e)}")
         return None
 
-def generate_images_from_prompt(prompt, width, height, num_images, style_name, style_prompt, api_key=None):
-    base_seed = random.randint(0, 1000000)
+def generate_images_from_prompt(prompt, width, height, num_images, style_name, style_prompt, negative_prompt, seed, enhance_prompt, api_key=None):
+    if seed == -1:
+        base_seed = random.randint(0, 1000000)
+    else:
+        base_seed = seed
     
     scenes = []
-    if api_key:
+    if api_key and enhance_prompt: # Only use ChatGPT if enhancement is enabled
         with st.spinner(f"Consulting with AI Illustrator ({style_name} Expert)..."):
             scenes = generate_storyboard(prompt, api_key, style_name)
             # Ensure we generate the requested number of images even if OpenAI gives one description
@@ -175,15 +178,21 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
     for index, scene_desc in enumerate(scenes):
         status_text.text(f"Generating Image {index + 1}/{len(scenes)}...")
         
-        # Construct the final prompt with style and quality boosters
-        style_part = f"{style_prompt}, " if style_prompt else ""
-        
-        # Combine everything: Style keywords + Quality tags + Scene Description
-        full_prompt = f"{style_part}masterpiece, best quality, 8k, cinematic lighting, detailed character design, {scene_desc}"
+        if enhance_prompt:
+            # Construct the final prompt with style and quality boosters
+            style_part = f"{style_prompt}, " if style_prompt else ""
+            # Combine everything: Style keywords + Quality tags + Scene Description
+            full_prompt = f"{style_part}masterpiece, best quality, 8k, cinematic lighting, detailed character design, {scene_desc}"
+        else:
+            # Raw prompt mode - just append style if selected, but no quality boosters
+            style_part = f"{style_prompt}, " if style_prompt else ""
+            full_prompt = f"{style_part}{scene_desc}"
         
         encoded_prompt = requests.utils.quote(full_prompt)
+        encoded_negative = requests.utils.quote(negative_prompt)
+        
         # Add negative prompt to avoid bad anatomy
-        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={base_seed + index}&nologo=true&negative=bad%20anatomy,blurred,watermark,text,error,missing%20limbs"
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={base_seed + index}&nologo=true&negative={encoded_negative}"
         image_urls.append(url)
         progress_bar.progress((index + 1) / len(scenes))
         time.sleep(0.5) # Slight delay to be nice to the API
@@ -227,6 +236,11 @@ with st.sidebar:
         
     num_images = st.slider("Number of Images", min_value=1, max_value=4, value=1)
 
+    with st.expander("Advanced Options"):
+        seed = st.number_input("Seed (-1 for random)", value=-1, step=1)
+        enhance_prompt = st.checkbox("Enhance Prompt (Quality Boosters)", value=True, help="If checked, adds 'masterpiece, best quality, 8k' etc. to your prompt. Uncheck for raw prompting.")
+        negative_prompt = st.text_area("Negative Prompt (What to avoid)", value="bad anatomy, blurred, watermark, text, error, missing limbs, extra digits, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, username, blurry", height=100)
+
 col1, col2 = st.columns([1, 1])
 
 with col1:
@@ -239,7 +253,7 @@ with col2:
             st.warning("Please provide a prompt.")
         else:
             with st.spinner("Summoning your anime photos..."):
-                image_urls = generate_images_from_prompt(prompt, width, height, num_images, style_option, style_prompts[style_option], api_key)
+                image_urls = generate_images_from_prompt(prompt, width, height, num_images, style_option, style_prompts[style_option], negative_prompt, seed, enhance_prompt, api_key)
                 
                 if image_urls:
                     st.success(f"Generated {len(image_urls)} Anime Photos!")
