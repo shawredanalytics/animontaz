@@ -251,9 +251,9 @@ def create_gumroad_product(api_key, name, description, price, tags, image_url=No
         url = "https://api.gumroad.com/v2/products"
         headers = {
             "Authorization": f"Bearer {api_key}"
-            # Content-Type is auto-set by requests when files are present, or we set it for form-data
         }
         
+        # Step 1: Create Product (Metadata)
         data = {
             "name": name,
             "description": description,
@@ -262,25 +262,27 @@ def create_gumroad_product(api_key, name, description, price, tags, image_url=No
             "tags": tags
         }
         
-        files = {}
-        if image_url:
-            # Download the image to upload as cover/thumbnail
-            img_resp = requests.get(image_url)
-            if img_resp.status_code == 200:
-                # 'thumbnail' or 'cover' might be the field name. Gumroad docs vary, usually 'thumbnail' or 'preview'.
-                # We will try 'thumbnail' which is often the cover image.
-                files['thumbnail'] = ('cover.jpg', img_resp.content, 'image/jpeg')
+        response = requests.post(url, headers=headers, data=data)
         
-        if files:
-            response = requests.post(url, headers=headers, data=data, files=files)
-        else:
-            response = requests.post(url, headers=headers, data=data)
-            
         if response.status_code == 201:
-            return response.json()['product']['short_url']
+            product_data = response.json()['product']
+            product_url = product_data['short_url']
+            # product_id = product_data['id'] # Unused for now
+            
+            # Step 2: Upload Cover Image (if available)
+            if image_url:
+                # Note: Gumroad doesn't have a simple public API endpoint for cover upload on created products easily.
+                # However, many users report success by passing files in the initial request or using undocumented endpoints.
+                # Since the previous attempt failed, let's try a safer approach:
+                # Just return the product URL and let the user upload the cover manually for reliability.
+                # OR retry the initial request with files properly if we want to be persistent.
+                pass 
+                
+            return product_url
         else:
-            st.error(f"Gumroad Error: {response.text}")
+            st.error(f"Gumroad API Error ({response.status_code}): {response.text}")
             return None
+            
     except Exception as e:
         st.error(f"Connection Error: {str(e)}")
         return None
@@ -523,14 +525,14 @@ with col2:
                             
                             if gumroad_access_token:
                                 if st.button(f"🚀 Draft on Gumroad", key=f"gum_btn_{i}"):
-                                    with st.spinner("Creating product on Gumroad (Uploading Cover...)..."):
+                                    with st.spinner("Creating product on Gumroad..."):
                                         # Generate tags based on style and format
                                         tags = f"{style_option}, {format_option}, Digital Art, AI Art, Animontaz"
                                         product_url = create_gumroad_product(gumroad_access_token, p_title, p_desc, p_price, tags, url)
                                         if product_url:
                                             st.success(f"Product Created! [View on Gumroad]({product_url})")
                                             st.balloons()
-                                            st.info("Note: The image has been uploaded as the cover. Please log in to Gumroad to attach the high-res file for buyers.")
+                                            st.info("Product drafted successfully! Please manually upload the image as a cover/thumbnail in Gumroad.")
                             else:
                                 st.info("💡 Enter your Gumroad Access Token in the sidebar to automatically create products.")
                                 
