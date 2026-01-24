@@ -267,7 +267,7 @@ def create_gumroad_product(api_key, name, description, price, tags, image_url=No
         if response.status_code == 201:
             product_data = response.json()['product']
             product_url = product_data['short_url']
-            # product_id = product_data['id'] # Unused for now
+            product_id = product_data['id']
             
             # Step 2: Upload Cover Image (if available)
             if image_url:
@@ -278,7 +278,7 @@ def create_gumroad_product(api_key, name, description, price, tags, image_url=No
                 # OR retry the initial request with files properly if we want to be persistent.
                 pass 
                 
-            return product_url
+            return {'short_url': product_url, 'id': product_id}
         else:
             st.error(f"Gumroad API Error ({response.status_code}): {response.text}")
             return None
@@ -528,11 +528,26 @@ with col2:
                                     with st.spinner("Creating product on Gumroad..."):
                                         # Generate tags based on style and format
                                         tags = f"{style_option}, {format_option}, Digital Art, AI Art, Animontaz"
-                                        product_url = create_gumroad_product(gumroad_access_token, p_title, p_desc, p_price, tags, url)
-                                        if product_url:
-                                            st.success(f"Product Created! [View on Gumroad]({product_url})")
+                                        result = create_gumroad_product(gumroad_access_token, p_title, p_desc, p_price, tags, url)
+                                        
+                                        if result:
+                                            product_url = result['short_url']
+                                            product_id = result['id']
+                                            edit_url = f"https://gumroad.com/products/{product_id}/edit"
+                                            
+                                            st.success(f"Product Created Successfully!")
                                             st.balloons()
-                                            st.info("Product drafted successfully! Please manually upload the image as a cover/thumbnail in Gumroad.")
+                                            
+                                            # Large call to action button to open Gumroad
+                                            st.markdown(f"""
+                                                <a href="{edit_url}" target="_blank" style="text-decoration: none;">
+                                                    <div style="background-color: #ff0055; color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px; margin: 10px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                                        🚀 CLICK HERE TO FINISH ON GUMROAD
+                                                    </div>
+                                                </a>
+                                            """, unsafe_allow_html=True)
+                                            
+                                            st.info("Product drafted! Click the button above to upload your image and publish.")
                             else:
                                 st.info("💡 Enter your Gumroad Access Token in the sidebar to automatically create products.")
                                 
