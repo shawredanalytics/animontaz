@@ -125,7 +125,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Helper functions
-def generate_storyboard(prompt, api_key):
+def generate_storyboard(prompt, api_key, style_name="Anime"):
     if not api_key:
         return None
         
@@ -137,7 +137,7 @@ def generate_storyboard(prompt, api_key):
         data = {
             "model": "gpt-3.5-turbo",
             "messages": [
-                {"role": "system", "content": "You are an expert anime illustrator. Create a detailed visual description for a high-quality anime illustration based on the user's prompt. Output ONLY the description, without any prefixes."},
+                {"role": "system", "content": f"You are an expert {style_name} illustrator. Create a detailed visual description for a high-quality illustration based on the user's prompt. Output ONLY the description, without any prefixes."},
                 {"role": "user", "content": prompt}
             ]
         }
@@ -152,32 +152,40 @@ def generate_storyboard(prompt, api_key):
         st.error(f"ChatGPT Error: {str(e)}")
         return None
 
-def generate_images_from_prompt(prompt, api_key=None):
+def generate_images_from_prompt(prompt, width, height, num_images, style_name, style_prompt, api_key=None):
     base_seed = random.randint(0, 1000000)
     
     scenes = []
     if api_key:
-        with st.spinner("Consulting with AI Illustrator (ChatGPT)..."):
-            scenes = generate_storyboard(prompt, api_key)
+        with st.spinner(f"Consulting with AI Illustrator ({style_name} Expert)..."):
+            scenes = generate_storyboard(prompt, api_key, style_name)
+            # Ensure we generate the requested number of images even if OpenAI gives one description
+            if scenes and len(scenes) == 1 and num_images > 1:
+                scenes = scenes * num_images
             
     if not scenes:
         image_prompt = prompt.replace('"', '').replace('saying', '').replace('says', '').strip()
-        # Fallback single scene with high quality tags
-        scenes = [f"{image_prompt}, cinematic composition, highly detailed environment, anime masterpiece, 8k, best quality"]
+        # Fallback scenes are just the raw prompt
+        scenes = [image_prompt] * num_images
     
     image_urls = []
     progress_bar = st.progress(0)
     status_text = st.empty()
     
     for index, scene_desc in enumerate(scenes):
-        status_text.text(f"Generating Anime Image...")
-        # Add character consistency tags
-        full_prompt = f"anime style, masterpiece, best quality, 8k, cinematic lighting, detailed character design, {scene_desc}"
+        status_text.text(f"Generating Image {index + 1}/{len(scenes)}...")
+        
+        # Construct the final prompt with style and quality boosters
+        style_part = f"{style_prompt}, " if style_prompt else ""
+        
+        # Combine everything: Style keywords + Quality tags + Scene Description
+        full_prompt = f"{style_part}masterpiece, best quality, 8k, cinematic lighting, detailed character design, {scene_desc}"
+        
         encoded_prompt = requests.utils.quote(full_prompt)
         # Add negative prompt to avoid bad anatomy
-        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&seed={base_seed}&nologo=true&negative=bad%20anatomy,blurred,watermark,text,error,missing%20limbs"
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={base_seed + index}&nologo=true&negative=bad%20anatomy,blurred,watermark,text,error,missing%20limbs"
         image_urls.append(url)
-        progress_bar.progress(100)
+        progress_bar.progress((index + 1) / len(scenes))
         time.sleep(0.5) # Slight delay to be nice to the API
     
     status_text.empty()
@@ -192,6 +200,32 @@ st.markdown("### AI Anime Image Generator")
 with st.sidebar:
     st.markdown("### ⚙️ Settings")
     api_key = st.text_input("OpenAI API Key (Optional)", type="password", help="Enter your OpenAI API Key to enable ChatGPT-powered scene generation.")
+    
+    st.markdown("### 🎨 Customization")
+    
+    style_option = st.selectbox(
+        "Art Style",
+        ["Default", "Cyberpunk", "Studio Ghibli", "Dark Fantasy", "90s Retro Anime", "Watercolor", "Manga (B&W)"],
+        index=0
+    )
+    
+    style_prompts = {
+        "Default": "",
+        "Cyberpunk": "neon lights, futuristic city, cybernetic enhancements, high tech, sci-fi atmosphere",
+        "Studio Ghibli": "lush nature, vibrant colors, hand painted style, peaceful atmosphere, detailed background",
+        "Dark Fantasy": "dark atmosphere, gothic architecture, dramatic shadows, mysterious, ethereal",
+        "90s Retro Anime": "grainy texture, vintage anime style, cel shaded, 90s aesthetic, vhs glitch",
+        "Watercolor": "watercolor painting style, soft edges, artistic, dreamy, pastel colors",
+        "Manga (B&W)": "black and white, manga style, screentones, ink lines, dramatic shading"
+    }
+    
+    col_w, col_h = st.columns(2)
+    with col_w:
+        width = st.number_input("Width", min_value=256, max_value=2048, value=1024, step=64)
+    with col_h:
+        height = st.number_input("Height", min_value=256, max_value=2048, value=1024, step=64)
+        
+    num_images = st.slider("Number of Images", min_value=1, max_value=4, value=1)
 
 col1, col2 = st.columns([1, 1])
 
@@ -205,27 +239,26 @@ with col2:
             st.warning("Please provide a prompt.")
         else:
             with st.spinner("Summoning your anime photos..."):
-                image_urls = generate_images_from_prompt(prompt, api_key)
+                image_urls = generate_images_from_prompt(prompt, width, height, num_images, style_option, style_prompts[style_option], api_key)
                 
                 if image_urls:
-                    st.success(f"Anime Photo Generated!")
+                    st.success(f"Generated {len(image_urls)} Anime Photos!")
                     
-                    # Display single image
-                    url = image_urls[0]
-                    st.image(url, caption="Generated Anime Art", use_container_width=True)
-                    
-                    # Add download button
-                    try:
-                        response = requests.get(url)
-                        if response.status_code == 200:
-                            st.download_button(
-                                label="Download Image",
-                                data=response.content,
-                                file_name=f"animontaz_art.jpg",
-                                mime="image/jpeg"
-                            )
-                    except Exception as e:
-                        st.error("Could not load download button")
+                    for i, url in enumerate(image_urls):
+                        st.image(url, caption=f"Generated Anime Art #{i+1}", use_container_width=True)
+                        
+                        try:
+                            response = requests.get(url)
+                            if response.status_code == 200:
+                                st.download_button(
+                                    label=f"Download Image #{i+1}",
+                                    data=response.content,
+                                    file_name=f"animontaz_art_{i+1}.jpg",
+                                    mime="image/jpeg",
+                                    key=f"dl_{i}"
+                                )
+                        except Exception as e:
+                            st.error(f"Could not load download button for image {i+1}")
 
 st.markdown("---")
 st.markdown("Powered by Pollinations.ai")
