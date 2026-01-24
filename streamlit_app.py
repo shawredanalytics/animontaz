@@ -199,7 +199,7 @@ def generate_images_from_prompt(prompt, width, height, num_images, style_name, s
             # Construct the final prompt with style and quality boosters
             style_part = f"{style_prompt}, " if style_prompt else ""
             # Combine everything: Style keywords + Quality tags + Scene Description
-            full_prompt = f"{style_part}masterpiece, best quality, 8k, cinematic lighting, detailed character design, {scene_desc}"
+            full_prompt = f"{style_part}masterpiece, best quality, 8k, cinematic lighting, detailed character design, anatomically correct, perfect anatomy, detailed face, detailed hands, {scene_desc}"
         else:
             # Raw prompt mode - just append style if selected, but no quality boosters
             style_part = f"{style_prompt}, " if style_prompt else ""
@@ -256,7 +256,7 @@ with st.sidebar:
     with st.expander("Advanced Options"):
         seed = st.number_input("Seed (-1 for random)", value=-1, step=1)
         enhance_prompt = st.checkbox("Enhance Prompt (Quality Boosters)", value=True, help="If checked, adds 'masterpiece, best quality, 8k' etc. to your prompt. Uncheck for raw prompting.")
-        negative_prompt = st.text_area("Negative Prompt (What to avoid)", value="bad anatomy, blurred, watermark, text, error, missing limbs, extra digits, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, username, blurry", height=100)
+        negative_prompt = st.text_area("Negative Prompt (What to avoid)", value="bad anatomy, blurred, watermark, text, error, missing limbs, extra digits, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, username, blurry, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, ugly, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck", height=100)
 
 col1, col2 = st.columns([1, 1])
 
