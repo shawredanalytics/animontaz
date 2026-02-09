@@ -2,6 +2,7 @@ import streamlit as st
 import time
 import requests
 import random
+import os
 
 # Set page config
 st.set_page_config(
@@ -15,6 +16,11 @@ try:
     import openai
 except ImportError:
     openai = None
+
+try:
+    from gradio_client import Client
+except ImportError:
+    Client = None
 
 # Custom CSS for Cartoon look
 st.markdown("""
@@ -409,10 +415,10 @@ with st.sidebar:
             index=0
         )
     
-    st.markdown("### � Store Integration")
+    st.markdown("### 🛒 Store Integration")
     gumroad_access_token = st.text_input("Gumroad Access Token (Optional)", type="password", help="Enter your Gumroad Access Token to automatically draft products.")
     
-    st.markdown("### �� Art Direction")
+    st.markdown("### 🎨 Art Direction")
     
     format_option = st.selectbox(
         "Output Format (Commercial Use)",
@@ -450,7 +456,7 @@ with st.sidebar:
     
     style_prompts = {
         "Disney / Pixar 3D": "3d render, pixar style, disney style, cgsociety, unreal engine 5, cute, expressive, smooth",
-        "Classic Cartoon (2D)": "flat color, thick outlines, 1990s cartoon style, hanna barbera style, vibrant, funny",
+        "Classic Cartoon (2D": "flat color, thick outlines, 1990s cartoon style, hanna barbera style, vibrant, funny",
         "Modern Cartoon": "calarts style, adventure time style, vector art, flat design, bright colors, simple",
         "Comic Book": "comic book style, marvel style, dc style, bold lines, dynamic action, halftone patterns",
         "Claymation": "claymation style, aardman style, stop motion, plasticine, textured, handmade",
@@ -478,87 +484,140 @@ with st.sidebar:
         enhance_prompt = st.checkbox("Enhance Prompt (Quality Boosters)", value=True, help="If checked, adds 'masterpiece, best quality, 8k' etc. to your prompt. Uncheck for raw prompting.")
         negative_prompt = st.text_area("Negative Prompt (What to avoid)", value="bad anatomy, blurred, watermark, text, error, missing limbs, extra digits, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, username, blurry, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, ugly, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck", height=100)
 
-col1, col2 = st.columns([1, 1])
+tab_art, tab_video = st.tabs(["🎨 Static Art", "🎬 Anime Video"])
 
-with col1:
-    prompt = st.text_area("Enter your prompt", placeholder="A majestic lion wearing a crown, galaxy background...", height=100)
-    generate_btn = st.button("GENERATE DIGITAL ART")
+with tab_art:
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        prompt = st.text_area("Enter your prompt", placeholder="A majestic lion wearing a crown, galaxy background...", height=100)
+        generate_btn = st.button("GENERATE DIGITAL ART")
 
-with col2:
-    if generate_btn:
-        if not prompt:
-            st.warning("Please provide a prompt.")
-        else:
-            with st.spinner("Creating your masterpiece..."):
-                image_urls = generate_images_from_prompt(prompt, width, height, num_images, style_option, style_prompts[style_option], negative_prompt, seed, enhance_prompt, format_option, api_key, generation_source, horde_api_key, horde_model)
-                
-                if image_urls:
-                    st.success(f"Generated {len(image_urls)} Artworks!")
+    with col2:
+        if generate_btn:
+            if not prompt:
+                st.warning("Please provide a prompt.")
+            else:
+                with st.spinner("Creating your masterpiece..."):
+                    image_urls = generate_images_from_prompt(prompt, width, height, num_images, style_option, style_prompts.get(style_option, ""), negative_prompt, seed, enhance_prompt, format_option, api_key, generation_source, horde_api_key, horde_model)
                     
-                    for i, url in enumerate(image_urls):
-                        st.image(url, caption=f"Generated Art #{i+1}", use_container_width=True)
+                    if image_urls:
+                        st.success(f"Generated {len(image_urls)} Artworks!")
                         
-                        try:
-                            response = requests.get(url)
-                            if response.status_code == 200:
-                                st.download_button(
-                                    label=f"Download Art #{i+1}",
-                                    data=response.content,
-                                    file_name=f"animontaz_art_{i+1}.jpg",
-                                    mime="image/jpeg",
-                                    key=f"dl_{i}"
-                                )
-                        except Exception as e:
-                            st.error(f"Could not load download button for image {i+1}")
+                        for i, url in enumerate(image_urls):
+                            st.image(url, caption=f"Generated Art #{i+1}", use_container_width=True)
+                            
+                            try:
+                                response = requests.get(url)
+                                if response.status_code == 200:
+                                    st.download_button(
+                                        label=f"Download Art #{i+1}",
+                                        data=response.content,
+                                        file_name=f"animontaz_art_{i+1}.jpg",
+                                        mime="image/jpeg",
+                                        key=f"dl_{i}"
+                                    )
+                            except Exception as e:
+                                st.error(f"Could not load download button for image {i+1}")
 
-                        # Store Integration
-                        with st.expander(f"💰 Sell Art #{i+1}"):
-                            st.markdown("#### 📝 Product Details")
-                            
-                            default_title = f"{format_option} - {style_option} #{i+1}"
-                            p_title = st.text_input("Title", value=default_title, key=f"title_{i}")
-                            
-                            default_desc = f"**Format:** {format_option}\n**Style:** {style_option}\n**Prompt:** {prompt}\n\nHigh-resolution digital artwork created with Animontaz."
-                            p_desc = st.text_area("Description", value=default_desc, key=f"desc_{i}")
-                            
-                            p_price = st.number_input("Price ($)", value=4.99, step=0.5, key=f"price_{i}")
-                            
-                            if gumroad_access_token:
-                                if st.button(f"🚀 Draft on Gumroad", key=f"gum_btn_{i}"):
-                                    with st.spinner("Creating product on Gumroad..."):
-                                        # Generate tags based on style and format
-                                        tags = f"{style_option}, {format_option}, Digital Art, AI Art, Animontaz"
-                                        result = create_gumroad_product(gumroad_access_token, p_title, p_desc, p_price, tags, url)
-                                        
-                                        if result:
-                                            product_url = result['short_url']
-                                            product_id = result['id']
-                                            edit_url = f"https://gumroad.com/products/{product_id}/edit"
-                                            
-                                            st.success(f"Product Created Successfully!")
-                                            st.balloons()
-                                            
-                                            # Large call to action button to open Gumroad
-                                            st.markdown(f"""
-                                                <a href="{edit_url}" target="_blank" style="text-decoration: none;">
-                                                    <div style="background-color: #ff0055; color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px; margin: 10px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                                                        🚀 CLICK HERE TO FINISH ON GUMROAD
-                                                    </div>
-                                                </a>
-                                            """, unsafe_allow_html=True)
-                                            
-                                            st.info("Product drafted! Click the button above to upload your image and publish.")
-                            else:
-                                st.info("💡 Enter your Gumroad Access Token in the sidebar to automatically create products.")
+                            # Store Integration
+                            with st.expander(f"💰 Sell Art #{i+1}"):
+                                st.markdown("#### 📝 Product Details")
                                 
-                            st.markdown("#### 🌐 Other Platforms")
-                            c1, c2, c3 = st.columns(3)
-                            with c1:
-                                st.markdown("[Redbubble Upload](https://www.redbubble.com/portfolio/images/new)")
-                            with c2:
-                                st.markdown("[Teespring Launcher](https://teespring.com/dashboard/campaigns)")
-                            with c3:
-                                st.markdown("[Etsy Shop](https://www.etsy.com/your/shops/me/dashboard)")
+                                default_title = f"{format_option} - {style_option} #{i+1}"
+                                p_title = st.text_input("Title", value=default_title, key=f"title_{i}")
+                                
+                                default_desc = f"**Format:** {format_option}\\n**Style:** {style_option}\\n**Prompt:** {prompt}\\n\\nHigh-resolution digital artwork created with Animontaz."
+                                p_desc = st.text_area("Description", value=default_desc, key=f"desc_{i}")
+                                
+                                p_price = st.number_input("Price ($)", value=4.99, step=0.5, key=f"price_{i}")
+                                
+                                if gumroad_access_token:
+                                    if st.button(f"🚀 Draft on Gumroad", key=f"gum_btn_{i}"):
+                                        with st.spinner("Creating product on Gumroad..."):
+                                            # Generate tags based on style and format
+                                            tags = f"{style_option}, {format_option}, Digital Art, AI Art, Animontaz"
+                                            result = create_gumroad_product(gumroad_access_token, p_title, p_desc, p_price, tags, url)
+                                            
+                                            if result:
+                                                product_url = result['short_url']
+                                                product_id = result['id']
+                                                edit_url = f"https://gumroad.com/products/{product_id}/edit"
+                                                
+                                                st.success(f"Product Created Successfully!")
+                                                st.balloons()
+                                                
+                                                # Large call to action button to open Gumroad
+                                                st.markdown(f'''
+                                                    <a href="{edit_url}" target="_blank" style="text-decoration: none;">
+                                                        <div style="background-color: #ff0055; color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px; margin: 10px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                                            🚀 CLICK HERE TO FINISH ON GUMROAD
+                                                        </div>
+                                                    </a>
+                                                ''', unsafe_allow_html=True)
+                                                
+                                                st.info("Product drafted! Click the button above to upload your image and publish.")
+                                else:
+                                    st.info("💡 Enter your Gumroad Access Token in the sidebar to automatically create products.")
+                                    
+                                st.markdown("#### 🌐 Other Platforms")
+                                c1, c2, c3 = st.columns(3)
+                                with c1:
+                                    st.markdown("[Redbubble Upload](https://www.redbubble.com/portfolio/images/new)")
+                                with c2:
+                                    st.markdown("[Teespring Launcher](https://teespring.com/dashboard/campaigns)")
+                                with c3:
+                                    st.markdown("[Etsy Shop](https://www.etsy.com/your/shops/me/dashboard)")
+
+with tab_video:
+    st.header("🎬 Anime Video Generator")
+    st.markdown("Turn your images into short anime videos using **AnimateDiff**.")
+    
+    video_mode = st.radio("Processing Mode", ["Cloud GPU (Google Colab)", "Local GPU (Slow on CPU)"], index=0)
+    
+    if video_mode == "Cloud GPU (Google Colab)":
+        st.info("ℹ️ **How to use:**\\n1. Open the [Animontaz Colab Notebook](https://colab.research.google.com/drive/1PjSeT_UkgwpNeNSUt3LOaWa6mtJ7-P7u#scrollTo=rAu25GrpAgUO).\\n2. Run the notebook (Runtime > Run all).\\n3. Copy the `https://xxxx.gradio.live` link from the output.\\n4. Paste it below.")
+        gradio_url = st.text_input("Paste Gradio Link (e.g. https://...gradio.live)", placeholder="https://...")
+        
+        if gradio_url:
+            v_col1, v_col2 = st.columns(2)
+            with v_col1:
+                v_image = st.file_uploader("Upload Anime Image", type=["png", "jpg", "jpeg"])
+                v_prompt = st.text_area("Motion Prompt (Optional)", placeholder="1girl, smiling, wind blowing hair, subtle breathing")
+                v_btn = st.button("GENERATE VIDEO (CLOUD)")
+            
+            with v_col2:
+                if v_btn and v_image and gradio_url:
+                    if not Client:
+                        st.error("`gradio_client` library not found. Please install it.")
+                    else:
+                        with st.spinner("Connecting to Cloud GPU & Generating Video..."):
+                            try:
+                                # Save uploaded file temporarily
+                                temp_dir = "temp_uploads"
+                                os.makedirs(temp_dir, exist_ok=True)
+                                temp_path = os.path.join(temp_dir, v_image.name)
+                                with open(temp_path, "wb") as f:
+                                    f.write(v_image.getbuffer())
+                                
+                                client = Client(gradio_url)
+                                result = client.predict(
+                                    image_path=temp_path,
+                                    prompt=v_prompt,
+                                    api_name="/generate_video"
+                                )
+                                
+                                st.success("Video Generated!")
+                                st.video(result)
+                                
+                                # Clean up
+                                # os.remove(temp_path) 
+                            except Exception as e:
+                                st.error(f"Error: {str(e)}")
+                                st.warning("Make sure the Colab notebook is running and the link is correct.")
+
+    else:
+        st.warning("Local GPU mode integration coming soon. Use the `anime_video_mvp` folder manually for now.")
 
 st.markdown("---")
-st.markdown("Powered by Pollinations.ai & Stable Horde")
+st.markdown("Powered by Pollinations.ai & Stable Horde & AnimateDiff")

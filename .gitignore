@@ -5,5 +5,8 @@ dist/
 server/uploads/
 *.log
 temp_process/
+temp_uploads/
+venv/
 *.mp4
 __pycache__/
+*.pyc
