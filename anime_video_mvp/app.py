@@ -94,4 +94,4 @@ if __name__ == "__main__":
     if not torch.cuda.is_available():
         print("WARNING: CUDA not found. Running on CPU will be extremely slow.")
         
-    demo.launch(share=True)
+    demo.launch(share=True, show_error=True)
