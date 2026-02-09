@@ -3,6 +3,16 @@ import time
 import requests
 import random
 import os
+import sys
+import torch
+
+# Add anime_video_mvp to path so we can import modules from it
+sys.path.append(os.path.join(os.path.dirname(__file__), "anime_video_mvp"))
+
+try:
+    from animate import AnimeAnimator
+except ImportError:
+    AnimeAnimator = None
 
 # Set page config
 st.set_page_config(
@@ -18,9 +28,10 @@ except ImportError:
     openai = None
 
 try:
-    from gradio_client import Client
+    from gradio_client import Client, handle_file
 except ImportError:
     Client = None
+    handle_file = None
 
 # Custom CSS for Cartoon look
 st.markdown("""
@@ -576,8 +587,18 @@ with tab_video:
     video_mode = st.radio("Processing Mode", ["Cloud GPU (Google Colab)", "Local GPU (Slow on CPU)"], index=0)
     
     if video_mode == "Cloud GPU (Google Colab)":
-        st.info("ℹ️ **How to use:**\\n1. Open the [Animontaz Colab Notebook](https://colab.research.google.com/drive/1PjSeT_UkgwpNeNSUt3LOaWa6mtJ7-P7u#scrollTo=rAu25GrpAgUO).\\n2. Run the notebook (Runtime > Run all).\\n3. Copy the `https://xxxx.gradio.live` link from the output.\\n4. Paste it below.")
-        gradio_url = st.text_input("Paste Gradio Link (e.g. https://...gradio.live)", placeholder="https://...")
+        st.info("ℹ️ **How to use:**\\n1. Open the [Animontaz Colab Notebook](https://colab.research.google.com/drive/1PjSeT_UkgwpNeNSUt3LOaWa6mtJ7-P7u#scrollTo=rAu25GrpAgUO).\\n2. Run the notebook (Runtime > Run all).\\n3. The link will be auto-detected if running locally, otherwise paste it below.")
+        
+        # Try to load local link
+        default_url = ""
+        try:
+            if os.path.exists("gradio_url.txt"):
+                with open("gradio_url.txt", "r") as f:
+                    default_url = f.read().strip()
+        except:
+            pass
+
+        gradio_url = st.text_input("Paste Gradio Link (e.g. https://...gradio.live)", value=default_url, placeholder="https://...")
         
         if gradio_url:
             v_col1, v_col2 = st.columns(2)
@@ -602,9 +623,9 @@ with tab_video:
                                 
                                 client = Client(gradio_url)
                                 result = client.predict(
-                                    image_path=temp_path,
+                                    image_path=handle_file(temp_path),
                                     prompt=v_prompt,
-                                    api_name="/generate_video"
+                                    api_name="generate_video"
                                 )
                                 
                                 st.success("Video Generated!")
@@ -613,11 +634,64 @@ with tab_video:
                                 # Clean up
                                 # os.remove(temp_path) 
                             except Exception as e:
-                                st.error(f"Error: {str(e)}")
-                                st.warning("Make sure the Colab notebook is running and the link is correct.")
+                                st.error(f"Generation Failed: {str(e)}")
+                                st.warning("👉 Tip: Check the Google Colab logs for detailed error messages. Ensure the notebook is still running.")
 
     else:
-        st.warning("Local GPU mode integration coming soon. Use the `anime_video_mvp` folder manually for now.")
+        # Local GPU/CPU Mode
+        if not AnimeAnimator:
+            st.error("Could not import AnimeAnimator. Make sure `anime_video_mvp/animate.py` exists.")
+        else:
+            if not torch.cuda.is_available():
+                st.warning("⚠️ **No CUDA GPU detected.** Running on CPU. Generation will be extremely slow (10-20 mins).")
+            
+            l_col1, l_col2 = st.columns(2)
+            
+            with l_col1:
+                l_image = st.file_uploader("Upload Anime Image (Local)", type=["png", "jpg", "jpeg"], key="local_upload")
+                l_prompt = st.text_area("Motion Prompt (Local)", placeholder="1girl, smiling, wind blowing hair", key="local_prompt")
+                l_btn = st.button("GENERATE VIDEO (LOCAL)")
+            
+            with l_col2:
+                if l_btn and l_image:
+                    with st.spinner("Initializing Model & Generating (This may take a while)..."):
+                        try:
+                            # Cache the model loading
+                            @st.cache_resource
+                            def get_animator():
+                                return AnimeAnimator()
+                            
+                            animator = get_animator()
+                            
+                            # Save uploaded file
+                            temp_dir = "temp_uploads"
+                            os.makedirs(temp_dir, exist_ok=True)
+                            temp_path = os.path.join(temp_dir, l_image.name)
+                            with open(temp_path, "wb") as f:
+                                f.write(l_image.getbuffer())
+                                
+                            # Generate
+                            # CPU optimization: fewer frames/steps
+                            is_cpu = not torch.cuda.is_available()
+                            steps = 10 if is_cpu else 25
+                            num_frames = 8 if is_cpu else 24
+                            
+                            if is_cpu:
+                                st.info(f"CPU Mode Active: Reduced to {num_frames} frames & {steps} steps for speed.")
+                            
+                            output_video = animator.generate(
+                                image_path=temp_path,
+                                prompt=l_prompt if l_prompt else "1girl, smiling",
+                                num_frames=num_frames,
+                                steps=steps
+                            )
+                            
+                            st.success("Video Generated Successfully!")
+                            st.video(output_video)
+                            
+                        except Exception as e:
+                            st.error(f"Local Generation Failed: {str(e)}")
+                            st.error(f"Details: {e}")
 
 st.markdown("---")
 st.markdown("Powered by Pollinations.ai & Stable Horde & AnimateDiff")

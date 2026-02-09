@@ -94,4 +94,25 @@ if __name__ == "__main__":
     if not torch.cuda.is_available():
         print("WARNING: CUDA not found. Running on CPU will be extremely slow.")
         
-    demo.launch(share=True, show_error=True)
+    # Launch in non-blocking mode to capture the URL
+    app, local_url, share_url = demo.launch(share=True, show_error=True, prevent_thread_lock=True)
+    
+    # Save the share URL to a file for Streamlit to read
+    try:
+        url_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gradio_url.txt")
+        with open(url_file, "w") as f:
+            f.write(share_url)
+        print(f"Gradio Link Saved to: {url_file}")
+        print(f"Public URL: {share_url}")
+    except Exception as e:
+        print(f"Failed to save Gradio link: {e}")
+
+    # Keep the script running
+    print("App is running. Press Ctrl+C to stop.")
+    import time
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Stopping app...")
+        demo.close()
