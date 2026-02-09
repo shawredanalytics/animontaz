@@ -109,9 +109,7 @@ class AnimeAnimator:
             num_inference_steps=steps,
             guidance_scale=guidance_scale,
             strength=strength,
-            generator=generator,
-            callback=callback_fn,
-            callback_steps=1
+            generator=generator
         )
         
         frames = output.frames[0]
