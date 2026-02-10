@@ -5,9 +5,21 @@ import random
 import os
 import sys
 import torch
+import subprocess
 
 # Add anime_video_mvp to path so we can import modules from it
 sys.path.append(os.path.join(os.path.dirname(__file__), "anime_video_mvp"))
+
+try:
+    import diffusers
+    import cv2
+except ImportError:
+    # Fallback to ensure dependencies are installed if Streamlit Cloud missed them
+    # This is a hacky fix but useful for debugging deployment issues
+    st.warning("Dependencies not fully installed. Attempting hot-fix...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "torch", "diffusers==0.30.0", "transformers", "accelerate", "opencv-python-headless"])
+    import torch
+    import diffusers
 
 try:
     from animate import AnimeAnimator
